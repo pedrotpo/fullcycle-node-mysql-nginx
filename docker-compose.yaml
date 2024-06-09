@@ -1,0 +1,62 @@
+services:
+  db:
+    image: mysql:5.7
+    command: --innodb-use-native-aio=0
+    container_name: fullcycle_db
+    restart: always
+    networks:
+      - fullcycle
+    volumes:
+      - mysql:/var/lib/mysql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      MYSQL_DATABASE: fullcycle
+      MYSQL_ROOT_PASSWORD: root
+    tty: true
+    healthcheck:
+      test: ["CMD", "mysqladmin", "-uroot", "-proot", "ping"]
+      interval: 5s
+      timeout: 10s
+      retries: 3
+  
+  app:
+    build:
+      context: ./node
+      dockerfile: Dockerfile
+    image: fullcycle-app
+    container_name: fullcycle_app
+    entrypoint: bash -c "npm install && npm start"
+    restart: always
+    networks:
+      - fullcycle
+    volumes:
+      - ./node:/usr/src/app
+    tty: true
+    depends_on:
+      db:
+        condition: service_healthy
+  
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    image: fullcycle-nginx
+    container_name: fullcycle_nginx
+    restart: always
+    networks:
+      - fullcycle
+    ports:
+      - "8080:80"
+    depends_on:
+      app:
+        condition: service_started
+      db:
+        condition: service_healthy
+
+networks:
+  fullcycle:
+    driver: bridge
+
+volumes:
+  mysql:
+    driver: local

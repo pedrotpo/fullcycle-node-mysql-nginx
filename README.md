@@ -1,0 +1,1 @@
+Para rodar, `docker compose up -d` e acessar `localhost:8080`
